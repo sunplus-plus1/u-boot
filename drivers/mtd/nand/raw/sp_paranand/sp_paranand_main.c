@@ -14,6 +14,8 @@
 #include <mach/gpio_drv.h>
 #include <cpu_func.h>
 #include <mapmem.h>
+#include <clk.h>
+#include <reset.h>
 
 #include <linux/dma-mapping.h>
 #include <linux/mtd/bbm.h>
@@ -227,7 +229,7 @@ static void sp_pnand_calc_timing(struct nand_chip *nand, struct sp_pnand_chip_ti
 	//struct sp_pnand_chip_timing *p;
 	u32 CLK, FtCK, timing[4];
 
-	CLK = FREQ_SETTING / 1000000;
+	CLK = info->clkfreq / 1000000;
 
 	tWH = tWP = tREH = tRES =  0;
 	tRLAT = tBSY = t1 = 0;
@@ -1556,34 +1558,49 @@ static int sp_pnand_probe(struct udevice *dev)
 {
 	struct sp_pnand_info *info = our_paranfc = dev_get_priv(dev);
 	int ret;
-	//struct clk *clk;
+	struct clk clk;
+	struct reset_ctl reset_ctl;
+	const void *blob = gd->fdt_blob;
+	int node = dev_of_offset(dev);
 
 	info->io_base = (void __iomem*)devfdt_get_addr_index(dev, 0);
 	info->sram_base = (void __iomem*)devfdt_get_addr_index(dev, 1);
-#if 0
-	clk = devm_clk_get(dev, NULL);
-	if (!IS_ERR(clk)) {
-		ret = clk_prepare_enable(clk);
-		if (ret)
-			return ret;
-	} else {
-		clk = NULL;
-	}
 
-	//FIXME
-	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency", &data->clkfreq))
-		data->clkfreq = CONFIG_SP_CLK_100M;
+	info->clkfreq = fdtdec_get_uint(blob, node, "clock-frequency", 0);
 
-	//DBGLEVEL1(sp_pnand_dbg("data->clkfreq %d\n", data->clkfreq));
-	ret = clk_set_rate(clk, data->clkfreq);
+	ret = clk_get_by_index(dev, 0, &clk);
 	if (ret) {
-		dev_err(dev, "Failed to set clk rate\n");
+		dev_err(dev, "Failed to clk_get_by_index()\n");
 		return ret;
 	}
 
-	data->clkfreq = clk_get_rate(clk);
-	DBGLEVEL2(sp_pnand_dbg("data->clkfreq %d\n", data->clkfreq));
-#endif
+	ret = clk_prepare_enable(&clk);
+	if (ret) {
+		dev_err(dev, "Failed to clk_prepare_enable()\n");
+		return ret;
+	}
+
+	ret = clk_set_rate(&clk, info->clkfreq);
+	if (IS_ERR_VALUE(ret)) {
+		dev_err(dev, "Failed to clk_set_rate()\n");
+		return ret;
+	}
+
+	info->clkfreq = clk_get_rate(&clk);
+	DBGLEVEL1(sp_pnand_dbg("info->clkfreq %d\n", info->clkfreq));
+
+	ret = reset_get_by_index(dev, 0, &reset_ctl);
+	if (ret) {
+		dev_err(dev, "Failed to reset_get_by_index()\n");
+		return ret;
+	}
+
+	ret = reset_deassert(&reset_ctl);
+	if (ret) {
+		dev_err(dev, "Failed to reset_deassert()\n");
+		return ret;
+	}
+
 	DBGLEVEL2(sp_pnand_dbg("info->io_base:0x%08lx", (unsigned long)info->io_base));
 	DBGLEVEL2(sp_pnand_dbg("info->sram_base:0x%08lx", (unsigned long)info->sram_base));
 
@@ -1605,20 +1622,12 @@ U_BOOT_DRIVER(sunplus_para_nand) = {
 	.priv_auto      = sizeof(struct sp_pnand_info),
 };
 
-#define PNAND_CORE_CLK_REG	0xf88001dc
-#define CORE_CLK_100M		(1 << 13) | (3 << 29)
-#define CORE_CLK_200M		(3 << 13) | (3 << 29)
-#define CORE_CLK_400M		(0 << 13) | (3 << 29)
-
 void board_paranand_init(void)
 {
 	struct udevice *dev;
 	int ret;
 
 	DBGLEVEL2(sp_pnand_dbg("board_paranand_init() entry\n"));
-
-	volatile unsigned int *clk_reg = (volatile unsigned int *)map_sysmem(PNAND_CORE_CLK_REG, 0);
-	*clk_reg = CORE_CLK_200M;
 
 	ret = uclass_get_device_by_driver(UCLASS_MTD,
 					  DM_DRIVER_GET(sunplus_para_nand),
