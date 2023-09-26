@@ -325,6 +325,7 @@ struct sp_pnand_info {
 	int inverse;
 	int scramble;
 	int clkfreq;
+	char *name;
 
 	int (*write_oob) (struct nand_chip *nand, u8 *buf, int len);
 	int (*read_oob) (struct nand_chip *nand, u8 *buf);

@@ -112,9 +112,12 @@
 #undef MTDPARTS_DEFAULT
 #define CONFIG_SYS_NAND_BASE            0xf8120000
 #define MTDIDS_DEFAULT                  "nand0=sp_paranand.0"
-#define MTDPARTS_DEFAULT                "sp_paranand.0:128k(nand_header),384k(xboot1),1536k(uboot1),2048k(uboot2),2m(fip),512k(env),512k(env_redund),256k(dtb),25m(kernel),-(rootfs)"
+#if (NAND_PAGE_SIZE == 8)
 /* Samsung MLC/Mirco SLC 8k page */
-//#define MTDPARTS_DEFAULT                "sp_paranand.0:1m(nand_header),1m(xboot1),1m(uboot1),1m(uboot2),2m(fip),1m(env),1m(env_redund),1m(dtb),25m(kernel),-(rootfs)"
+#define MTDPARTS_DEFAULT                "sp_paranand.0:1m(nand_header),1m(xboot1),1m(uboot1),1m(uboot2),2m(fip),1m(env),1m(env_redund),1m(dtb),25m(kernel),-(rootfs)"
+#else
+#define MTDPARTS_DEFAULT                "sp_paranand.0:128k(nand_header),384k(xboot1),1536k(uboot1),2048k(uboot2),2m(fip),512k(env),512k(env_redund),256k(dtb),25m(kernel),-(rootfs)"
+#endif
 #endif
 #endif
 

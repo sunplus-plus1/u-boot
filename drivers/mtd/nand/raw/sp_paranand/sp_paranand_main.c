@@ -18,6 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mtd/bbm.h>
 #include <linux/bitops.h>
+#include <command.h>
 
 #include "sp_paranand.h"
 
@@ -77,6 +78,7 @@ static struct sp_pnand_chip_timing chip_timing[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 
+#if 0
 static struct sp_pnand_chip_timing sync_timing[] = {
 	{ //MT29F32G08ABAAA 4GiB 3.3V 8-bit mode 0 20MHz
 	0, 10, 0, 0, 10, 0, 0, 0, 0, 0,
@@ -91,6 +93,7 @@ static struct sp_pnand_chip_timing sync_timing[] = {
 	0, 0, 0, 0, 0, 20, 20, 25, 0,
 	0, 0, 0, 18, 0, 20, 0, 0, 0, 0, 0, 0}
 };
+#endif
 
 struct sp_pnand_info *get_pnand_info(void)
 {
@@ -176,7 +179,7 @@ static void sp_pnand_set_warmup_cycle(struct nand_chip *nand,
 static struct sp_pnand_chip_timing *sp_pnand_scan_timing(struct nand_chip *nand)
 {
 	struct mtd_info *mtd = nand_to_mtd(nand);
-	struct sp_pnand_info *info = nand_get_controller_data(nand);
+	//struct sp_pnand_info *info = nand_get_controller_data(nand);
 
 	sp_pnand_dbg("mtd->name %s\n", mtd->name);
 	if(strcmp(mtd->name, "K9F2G08XXX 256MiB ZEBU 8-bit") == 0) {
@@ -238,14 +241,14 @@ static void sp_pnand_calc_timing(struct nand_chip *nand, struct sp_pnand_chip_ti
 	if(info->flash_type == LEGACY_FLASH) {
 		// tWH = max(tWH, tCH, tCLH, tALH)
 		tWH = max_4(p->tWH, p->tCH, (int)p->tCLH, (int)p->tALH);
-		tWH = (tWH * CLK) / 1000;
+		tWH = (tWH * CLK + 1000 - 1) / 1000;
 		// tWP = tWP
-		tWP = (p->tWP * CLK) / 1000;
+		tWP = (p->tWP * CLK + 1000 - 1) / 1000;
 		// tREH = tREH
-		tREH = (p->tREH * CLK) / 1000;
+		tREH = (p->tREH * CLK + 1000 - 1) / 1000;
 		// tRES = max(tREA, tRSTO, tREAID)
 		tRES = max_3(p->tREA, p->tRSTO, (int)p->tREAID);
-		tRES = (tRES * CLK) / 1000;
+		tRES = (tRES * CLK + 1000 - 1) / 1000;
 		// tRLAT < (tRES + tREH) + 2
 		//tRLAT = tRES + tREH;////////////////////////////////////////////////
 		tRLAT= 0;
@@ -436,7 +439,12 @@ static void sp_pnand_calc_timing(struct nand_chip *nand, struct sp_pnand_chip_ti
 		tPST+=toggle_offset;
 		tPRE+=toggle_offset;
 	}
-	//xt:RES
+#if 1	//xt:TEST
+	tWH -= 1;
+	tWP -= 1;
+	tREH -= 1;
+	tRES -= 1;
+#endif
 	timing[0] = (tWH << 24) | (tWP << 16) | (tREH << 8) | tRES;
 	timing[1] = (tRLAT << 16) | (tBSY << 8) | t1;
 	timing[2] = (tBUF4 << 24) | (tBUF3 << 16) | (tBUF2 << 8) | tBUF1;
@@ -464,10 +472,14 @@ static void sp_pnand_calc_timing(struct nand_chip *nand, struct sp_pnand_chip_ti
 		}
 	}
 
-	DBGLEVEL2(sp_pnand_dbg("AC Timing 0:0x%08x\n", timing[0]));
-	DBGLEVEL2(sp_pnand_dbg("AC Timing 1:0x%08x\n", timing[1]));
-	DBGLEVEL2(sp_pnand_dbg("AC Timing 2:0x%08x\n", timing[2]));
-	DBGLEVEL2(sp_pnand_dbg("AC Timing 3:0x%08x\n", timing[3]));
+	DBGLEVEL1(sp_pnand_dbg("AC Timing 0:0x%08x\n", timing[0]));
+	DBGLEVEL1(sp_pnand_dbg("AC Timing 1:0x%08x\n", timing[1]));
+	DBGLEVEL1(sp_pnand_dbg("AC Timing 2:0x%08x\n", timing[2]));
+	DBGLEVEL1(sp_pnand_dbg("AC Timing 3:0x%08x\n", timing[3]));
+	//t(ns) = reg * 1/coreclk * 1000000000//--- 200MHz t=reg*5; 400MHz t=reg*2.5
+	u32 r_cycle = ((tREH + 1) + (tRES + 1)) * 5;
+	u32 w_cycle = ((tWH + 1) + (tWP + 1)) * 5;
+	DBGLEVEL1(sp_pnand_dbg("read cycle %d, write cycle %d\n", r_cycle, w_cycle));
 }
 
 static void sp_pnand_onfi_set_feature(struct nand_chip *nand, int val)
@@ -566,7 +578,7 @@ static int sp_pnand_onfi_sync(struct nand_chip *nand)
 {
 	struct sp_pnand_info *info = nand_get_controller_data(nand);
 	struct mtd_info *mtd = nand_to_mtd(nand);
-	struct sp_pnand_chip_timing *p;
+	//struct sp_pnand_chip_timing *p;
 	u32 val;
 	int ret = -1;
 
@@ -919,7 +931,7 @@ static void sp_pnand_t2_set_feature(struct nand_chip *nand, u8 *buf)
 
 }
 
-
+__attribute__ ((unused))
 static int sp_pnand_t2_sync(struct nand_chip *nand, u8 wr_cyc, u8 rd_cyc)
 {
 	struct mtd_info *mtd = nand_to_mtd(nand);
@@ -1411,7 +1423,7 @@ int sp_pnand_hw_init(struct sp_pnand_info *info)
 
 void sp_pnand_set_actiming(struct nand_chip *nand)
 {
-	struct mtd_info *mtd = nand_to_mtd(nand);
+	//struct mtd_info *mtd = nand_to_mtd(nand);
 	struct sp_pnand_info *info = nand_get_controller_data(nand);
 	struct sp_pnand_chip_timing *p;
 #if 0 //DDR MODE in trouble
@@ -1518,7 +1530,8 @@ int sp_pnand_init(struct sp_pnand_info *info)
 	ret = nand_scan_tail(mtd);
 	if (ret)
 		return ret;
-
+	/* After nand_register(), the mtd->name is a num rather than a string */
+	info->name = mtd->name;
 	sp_pnand_set_actiming(nand);
 #if 0
 	if (num_partitions <= 0) {
@@ -1614,3 +1627,469 @@ void board_paranand_init(void)
 	if (ret && ret != -ENODEV)
 		DBGLEVEL1(sp_pnand_dbg("Failed to initialize %s. (error %d)\n", dev->name, ret));
 }
+
+//#define PNAND_MEASURE
+#ifdef PNAND_MEASURE
+/* Note: The unit of tWPST/tRPST/tWPRE/tRPRE field of sp_pnand_chip_timing is ns.
+ *
+ * tWH, tCH, tCLH, tALH, tCALH, tWP, tREH, tCR, tRSTO, tREAID,
+ * tREA, tRP, tWB, tRB, tWHR, tWHR2, tRHW, tRR, tAR, tRC
+ * tADL, tRHZ, tCCS, tCS, tCS2, tCLS, tCLR, tALS, tCALS, tCAL2, tCRES, tCDQSS, tDBS, tCWAW, tWPRE,
+ * tRPRE, tWPST, tRPST, tWPSTH, tRPSTH, tDQSHZ, tDQSCK, tCAD, tDSL
+ * tDSH, tDQSL, tDQSH, tDQSD, tCKWR, tWRCK, tCK, tCALS2, tDQSRE, tWPRE2, tRPRE2, tCEH
+ */
+
+static struct sp_pnand_chip_timing chip_timing_Mircon[] = {
+	{ //MT29F32G08ABAAA 4GiB 3.3V 8-bit mode 0 10MHz
+	30, 20, 20, 20, 0, 50, 30, 0, 0, 0,
+	40, 50, 200, 0, 120, 0, 200, 40, 25, 100,
+	200, 200, 0, 70, 0, 50, 20, 50, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ //MT29F32G08ABAAA 4GiB 3.3V 8-bit mode 1 20MHz
+	15, 10, 10, 10, 0, 24, 15, 0, 0, 0,
+	30, 25, 100, 0, 80, 0, 100, 20, 10, 50,
+	100, 100, 0, 35, 0, 25, 10, 25, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ //MT29F32G08ABAAA 4GiB 3.3V 8-bit mode 2 28MHz
+	15, 10, 10, 10, 0, 17, 15, 0, 0, 0,
+	25, 17, 100, 0, 80, 0, 100, 20, 10, 35,
+	100, 100, 0, 25, 0, 15, 10, 15, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ //MT29F32G08ABAAA 4GiB 3.3V 8-bit mode 3 33MHz
+	10, 5, 5, 5, 0, 15, 10, 0, 0, 0,
+	20, 15, 100, 0, 60, 0, 100, 20, 10, 30,
+	100, 100, 0, 25, 0, 10, 10, 10, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ //MT29F32G08ABAAA 4GiB 3.3V 8-bit mode 4 40MHz
+	10, 5, 5, 5, 0, 12, 10, 0, 0, 0,
+	20, 12, 100, 0, 60, 0, 100, 20, 10, 25,
+	70, 100, 0, 20, 0, 10, 10, 10, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ //MT29F32G08ABAAA 4GiB 3.3V 8-bit mode 5 50MHz
+	7, 5, 5, 5, 0, 10, 7, 0, 0, 0,
+	16, 10, 100, 0, 60, 0, 100, 20, 10, 20,
+	70, 100, 0, 15, 0, 10, 10, 10, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+};
+
+static struct sp_pnand_chip_timing chip_timing_Giga[] = {
+	{ //GD9FS2G8F2A 256MiB 1.8V 8-bit
+	10, 5, 5, 5, 0, 12, 10, 0, 0, 0,
+	20, 12, 100, 0, 60, 0, 100, 20, 10, 25,
+	300, 100, 0, 15, 0, 12, 10, 10, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+};
+
+static void pattern_generate(u32 data, u8 *buf, u32 size)
+{
+	u32 i = 0;
+	u8 *p = (u8 *)&data;
+
+	printk("%s, data: 0x%08x, size: 0x%08x\n", __FUNCTION__, data, size);
+
+	for(i = 0; i < size; i++) {
+		buf[i] = *(p + (i & 0x03));
+	}
+}
+
+static int pattern_check(u32 data, u8 *buf, u32 size)
+{
+	int i = 0;
+	u8 *p = (u8*)&data;
+
+	printk("%s, data: 0x%08x, size: 0x%08x\n", __FUNCTION__, data, size);
+
+	for(i = 0; i < size; i++) {
+		if(buf[i] != *(p + (i & 0x03))) {
+			printk("\rdata mis-match. i: %d, buf[i]: 0x%02x, *(p+(i&0x03): 0x%02x\n", i, buf[i], *(p + (i & 0x03)));
+			return -1;
+		}
+	}
+	return 0;
+}
+
+static int sp_pnand_test_erw(u32 addr, u32 size, u32 seed, u8 action)
+{
+	//struct mtd_info *mtd  = get_nand_dev_by_index(nand_curr_device);
+
+	struct sp_pnand_info *info = get_pnand_info();
+	struct nand_chip *nand = &info->nand;
+	struct mtd_info *mtd = nand_to_mtd(nand);
+
+	nand_erase_options_t erase_opts;
+	u32 block_size = mtd->erasesize;
+	u32 block_num = (size + block_size - 1) / block_size;
+	u32 start_block = addr / block_size;
+	size_t actual_size;
+	u32 now_seed;
+	u32 i, j;
+	int ret;
+	u8 *buf;
+
+	buf = (u8 *)malloc(block_size);
+	if (!buf) {
+		printk("no memory!\n");
+		goto err_out;
+	}
+	memset(buf, 0, sizeof(block_size));
+
+	printk("start block:%d, block_num:%d, seed:0x%x\n", start_block, block_num, seed);
+
+	switch (action)
+	{
+		case 0:
+			/* Erase blocks */
+			for (i=0,j=start_block; i<block_num; i++,j++) {
+				while (nand_block_isbad(mtd, (loff_t)j*block_size))
+					j++;
+
+				printk("\rerase block:%d\n", j);
+
+				memset(&erase_opts, 0, sizeof(erase_opts));
+				erase_opts.quiet = 1;
+				erase_opts.offset = (loff_t)j * block_size;
+				erase_opts.length = block_size;
+				ret = nand_erase_opts(mtd, &erase_opts);
+				if (ret) {
+					printk("\rerase blocks => fail\n");
+					ret = CMD_RET_FAILURE;
+					goto err_out;
+				}
+			}
+			printk("\rerase blocks => success\n");
+			break;
+
+		case 1:
+			/* Write blocks */
+			now_seed = seed;
+			for (i = 0, j = start_block; i < block_num; i++, j++) {
+				/* skip bad block */
+				while (nand_block_isbad(mtd, (loff_t)j*block_size))
+					j++;
+
+				printk("\rwrite block:%d\n",j);
+
+				/* prepare the pattern */
+				now_seed += (i * block_size) / 4;
+				pattern_generate(now_seed, buf, block_size);
+
+				/* write block */
+				actual_size = block_size;
+				ret = nand_write(mtd, (loff_t)j*block_size, &actual_size, buf);
+				if (ret) {
+					printk("\rwrite blocks => fail\n");
+					ret = CMD_RET_FAILURE;
+					goto err_out;
+				}
+			}
+			printk("\rwrite blocks => success\n");
+			break;
+
+		case 2:
+			/* Read blocks */
+			now_seed = seed;
+			for (i=  0, j = start_block; i < block_num; i++, j++) {
+				now_seed += (i * block_size) / 4;
+
+				/* skip bad block */
+				while (nand_block_isbad(mtd, (loff_t)j*block_size))
+					j++;
+
+				printk("\rread block:%d\n",j);
+
+				actual_size = block_size;
+				ret = nand_read(mtd, (loff_t)j*block_size, &actual_size, buf);
+				if (ret) {
+					printk("\rread blocks => fail\n");
+					ret = CMD_RET_FAILURE;
+					goto err_out;
+				}
+
+				if (pattern_check(now_seed, buf, block_size) == -1) {
+					printk("\rread blocks => data mis-match\n");
+					goto err_out;
+				}
+			}
+			printk("\rread blocks => success\n");
+			break;
+
+			default:
+				ret = CMD_RET_USAGE;
+		}
+
+	err_out:
+		if (buf)
+			free(buf);
+
+	return ret;
+}
+
+struct pad_ctl_regs {
+	unsigned int st_enable[4];		// 101.0 - 101.3
+	unsigned int driving_selector0[4];	// 101.4 - 101.7
+	unsigned int driving_selector1[4];	// 101.8 - 101.11
+	unsigned int driving_selector2[4];	// 101.12 - 101.15
+	unsigned int driving_selector3[4];	// 101.16 - 101.19
+	unsigned int xtal_config; 		// 101.20
+	unsigned int reserved_20;		// 101.21
+	unsigned int sd_config;			// 101.22
+	unsigned int sdio_config;		// 101.23
+	unsigned int reserved_24;		// 101.24
+	unsigned int gpio_first[4];		// 101.25 - 101.28
+	unsigned int reserved_29[3];		// 101.29 - 101.31
+};
+#define PAD_CTL_REG	((volatile struct pad_ctl_regs *)0xF8803280) // G101.0
+
+static void sp_pnand_set_ds(u8 pin, u8 strength)
+{
+	u32 reg_off = pin / 32;
+	u32 bit_mask = 1 << (pin % 32);
+
+	strength = (strength > 15) ? 15 : strength;
+
+	if (strength & 1)
+		PAD_CTL_REG->driving_selector0[reg_off] |= bit_mask;
+	else
+		PAD_CTL_REG->driving_selector0[reg_off] &= ~bit_mask;
+
+	if (strength & 2)
+		PAD_CTL_REG->driving_selector1[reg_off] |= bit_mask;
+	else
+		PAD_CTL_REG->driving_selector1[reg_off] &= ~bit_mask;
+
+	if (strength & 4)
+		PAD_CTL_REG->driving_selector2[reg_off] |= bit_mask;
+	else
+		PAD_CTL_REG->driving_selector2[reg_off] &= ~bit_mask;
+
+	if (strength & 8)
+		PAD_CTL_REG->driving_selector3[reg_off] |= bit_mask;
+	else
+		PAD_CTL_REG->driving_selector3[reg_off] &= ~bit_mask;
+
+}
+
+u8 sp_pnand_get_ds(u8 pin)
+{
+	u32 bit0, bit1, bit2, bit3;
+	u32 reg_off = pin / 32;
+	u32 bit_shift = pin % 32;
+	u8 strength;
+
+	bit0 = PAD_CTL_REG->driving_selector0[reg_off];
+	bit1 = PAD_CTL_REG->driving_selector1[reg_off];
+	bit2 = PAD_CTL_REG->driving_selector2[reg_off];
+	bit3 = PAD_CTL_REG->driving_selector3[reg_off];
+
+	bit0 = (bit0 >> bit_shift) & 0x1;
+	bit1 = (bit1 >> bit_shift) & 0x1;
+	bit2 = (bit2 >> bit_shift) & 0x1;
+	bit3 = (bit3 >> bit_shift) & 0x1;
+
+	strength = (bit3 << 3) | (bit2 << 2) | (bit1 << 1) | bit0;
+
+	return strength;
+}
+
+void sp_pnand_test_driving(u32 val)
+{
+	u8 strength = val & 0xff;
+	u8 pin = (val >> 8) & 0xff;
+	u8 gs_flag = (val >> 16) & 0xff;
+
+	if(gs_flag) {
+		printk("DUMP the DS:\n");
+		for(pin = 20; pin < 37; pin++) {
+			strength = sp_pnand_get_ds(pin);
+			printk("GPIO[%d] ds = %d\n", pin, strength);
+		}
+	} else {
+		if(pin) {
+			sp_pnand_set_ds(pin, strength);
+			printk("GPIO[%d] ds = %d\n", pin, strength);
+		} else {
+			for(pin = 20; pin < 37; pin++)
+				sp_pnand_set_ds(pin, strength);
+		}
+	}
+
+}
+
+#define PAD_CTL2_REG	0xF880335C //G102.23
+
+void sp_pnand_test_softpad(u32 val)
+{
+	u32 set = val & 0xff;
+	int mode = (val >> 8) & 0xff;
+	u8 bit12, bit31;
+
+	if(set) {
+		if (mode) { // 1:bypass 0 resample
+			*(volatile u32 *)PAD_CTL2_REG |= (1 << 31);// bit[31]:1
+			*(volatile u32 *)PAD_CTL2_REG &= ~(1 << 12);// bit[12]:0
+		} else {
+			*(volatile u32 *)PAD_CTL2_REG &= ~(1 << 31);// bit[31]:0
+			*(volatile u32 *)PAD_CTL2_REG |= (1 << 12);// bit[12]:1
+		}
+	} else {
+		set = *(volatile u32 *)PAD_CTL2_REG;
+		bit12 = (set >> 12) & 0x1;
+		bit31 = (set >> 31) & 0x1;
+		if ((bit12 == 1) && (bit31 == 0))
+			printk("Softpad: resample\n");
+		else if ((bit12 == 0) && (bit31 == 1))
+			printk("Softpad: bypass\n");
+	}
+}
+
+bool str2dec(const char *p, u32 *num)
+{
+        char *endptr;
+
+        *num = simple_strtoull(p, &endptr, 10);
+        return *p != '\0' && *endptr == '\0';
+}
+
+#define PNAND_TEST_ADDR	0x900000
+#define PNAND_TEST_SIZE	0x100000
+#define PNAND_TEST_SEED 0xff00ff00
+
+__attribute__ ((unused))
+static int sp_paranand_test(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[])
+{
+	u32 param1 = 0, param2 = 0, param3 = 0;
+	u32 val;
+	struct sp_pnand_chip_timing *p;
+	//struct mtd_info *mtd  = get_nand_dev_by_index(nand_curr_device);
+	struct sp_pnand_info *info = get_pnand_info();
+	struct nand_chip *nand = &info->nand;
+
+	char *cmd = argv[1];
+	int ret = 0;
+	int dev_flag;
+	u32 test_size, test_addr;
+
+	//printk("print name of flash %s\n", info->name);
+	if(strcmp(info->name, "MT29F32G08ABAAA 4GiB 3.3V 8-bit") == 0) {
+		dev_flag = 1;
+	} else if(strcmp(info->name, "GD9FS2G8F2A 256MiB 1.8V 8-bit") == 0) {
+		dev_flag = 0;
+	} else {
+		printk("The Device model is not expected to test\n");
+		return 0;
+	};
+
+	if (strncmp(cmd, "mode", 4) == 0) {
+
+		if (argc > 2) {
+
+			str2dec(argv[2], &param1);
+
+			if(dev_flag) {
+				p = &chip_timing_Mircon[param1];
+				sp_pnand_calc_timing(nand, p);
+				sp_pnand_onfi_set_feature(nand, param1);
+			} else {
+				p = &chip_timing_Giga[0];
+				sp_pnand_calc_timing(nand, p);
+			};
+
+		} else {
+			ret = CMD_RET_USAGE;
+		}
+
+	} else if (strncmp(cmd, "driving", 7) == 0) {
+		if (strncmp(argv[2], "get", 3) == 0) {
+			param3 = 1;
+		} else if (strncmp(argv[2], "set", 3) == 0) {
+			param3 = 0;
+		}
+
+		if (argc > 3)
+			str2dec(argv[3], &param1);
+
+		if (argc > 4)
+			str2dec(argv[4], &param2);
+
+		/* val bit[23:16]:get or set; bit[15:8]:gpio#x; bit[7:0]:ds */
+		val = (param3 << 16) | (param2 << 8) | param1;
+		sp_pnand_test_driving(val);
+
+	} else if (strncmp(cmd, "softpad", 7) == 0) {
+
+		if (argc > 2) {
+			if (strncmp(argv[2], "set", 2) == 0) {
+				param1 = 1;
+			} else if (strncmp(argv[2], "get", 3) == 0){
+				param1 = 0;
+			} else {
+				printk("[Error] Check cmd parameter set/get\n");
+				return CMD_RET_USAGE;
+			}
+		}
+		if (argc > 3) {
+			if (strncmp(argv[3], "bypass", 6) == 0) {
+				param2 = 1;
+			} else if (strncmp(argv[3], "resample", 8) == 0){
+				param2 = 0;
+			} else {
+				printk("[Error] Check cmd parameter bypass/resample\n");
+				return CMD_RET_USAGE;
+			}
+		}
+
+		val = (param2 << 8) | param1;
+		sp_pnand_test_softpad(val);
+
+	} else if (strncmp(cmd, "test", 4) == 0) {
+
+		if (argc > 2) {
+			test_addr = PNAND_TEST_ADDR;
+			test_size = PNAND_TEST_SIZE;
+#if 0
+			if (dev_flag) {
+				test_addr = 0x900000;
+				test_size = 0x100000;
+			} else {
+				test_addr = 0x740000;
+				test_size = 0x20000;
+			}
+#endif
+			cmd = argv[2];
+
+			if (strncmp(cmd, "erase", 5) == 0) {
+				ret = sp_pnand_test_erw(test_addr, test_size, PNAND_TEST_SEED, 0);
+			} else if (strncmp(cmd, "write", 5) == 0) {
+				ret = sp_pnand_test_erw(test_addr, test_size, PNAND_TEST_SEED, 1);
+			} else if (strncmp(cmd, "read", 4) == 0) {
+				ret = sp_pnand_test_erw(test_addr, test_size, PNAND_TEST_SEED, 2);
+			} else {
+				ret = CMD_RET_USAGE;
+			}
+		} else {
+			ret = CMD_RET_USAGE;
+		}
+	} else {
+		ret = CMD_RET_USAGE;
+	}
+	return ret;
+}
+
+U_BOOT_CMD(pnand, CONFIG_SYS_MAXARGS, 1, sp_paranand_test,
+	"sunplus parallel-nand tests",
+	"pnand mode [value] - set actiming mode, 0~5 are allowed."
+	"pnand driving [set/get] [ds] [pin]- set driving strength. The ds range is 0~15.\n"
+	"pnand softpad [out/input] [bypass/resample]- set softpad.\n"
+	"pnand test - timing measurement command.\n"
+	"\terase - erase a block.\n"
+	"\twrite - write a block.\n"
+	"\tread - read a block.\n"
+);
+#endif
