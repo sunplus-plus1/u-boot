@@ -34,7 +34,7 @@
 #define IS_PLLN()	(pll->reg == PLLN_CTL)
 #define IS_PLLS()	(pll->reg == PLLS_CTL)
 #define IS_PLLHS()	(IS_PLLH() || IS_PLLS())
-#define NO_PSTDIV()	(IS_PLLHS() || IS_PLLC() || IS_PLLL3())
+#define NO_PSTDIV()	(IS_PLLHS())
 
 #define BP	0	/* Reg 0 */
 #define PREDIV	1
@@ -382,7 +382,6 @@ static ulong sp_pll_calc_div(struct sp_pll *pll, ulong rate)
 {
 	ulong ret = 0, mr = 0;
 	int mi = 0, md = 0x7fffffff;
-	/* PLLH/PLLS/PLLC/PLLL3 ignore pstdiv (pstdiv == 1) */
 	int i = NO_PSTDIV() ? 3 : divs_size;
 
 	//pr_info("calc_rate: %lu\n", rate);
