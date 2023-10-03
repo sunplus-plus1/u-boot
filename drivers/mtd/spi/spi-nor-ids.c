@@ -371,6 +371,8 @@ const struct flash_info spi_nor_ids[] = {
 	{INFO("F25L32QA",		0x8c4016, 0x0,	64 * 1024,    64,	0)},
 	{INFO("F25L64PA",		0x8c2117, 0x0,	64 * 1024,    128,	0)},
 	{INFO("F25L64QA",	 	0x8c4117, 0x0,	64 * 1024,    128,	0)},
+	/* SUNPLUS ROMTER */
+	{INFO("SUNPLUS ROMTER",		0x53554e, 0x0,	64 * 1024,   512,	0)},
 #endif
 	{ },
 };
