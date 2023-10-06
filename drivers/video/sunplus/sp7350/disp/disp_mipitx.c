@@ -97,6 +97,14 @@ void DRV_mipitx_pllclk_set(int mode, int width, int height)
 			DISP_MOON3_REG->sft_cfg[25] = 0x07800380; //PLLH MIPITX CLK = 49MHz	
 			G205_MIPITX_REG1->sft_cfg[11] = 0x00000c00; //TXPLL MIPITX CLK = 300MHz
 			G205_MIPITX_REG1->sft_cfg[12] = 0x00000140; //TXPLL BNKSEL = 300MHz -- 640MHz
+		} else if ((width == 240) && (height == 320)) {
+			DISP_MOON3_REG->sft_cfg[14] = 0x80000000; //PLLH pre_scal = div1
+			DISP_MOON3_REG->sft_cfg[14] = 0x00780050; //PLLH post_div = x101-0xxx
+			DISP_MOON3_REG->sft_cfg[14] = (0x7f800000 | (0x16 << 7)); //PLLH
+			DISP_MOON3_REG->sft_cfg[25] = 0x07800780; //PLLH MIPITX CLK = 14.93MHz
+			G205_MIPITX_REG1->sft_cfg[11] = 0x00000E00; //TXPLL MIPITX CLK = 350MHz
+			//G205_MIPITX_REG1->sft_cfg[11] = 0x00000F00; //TXPLL MIPITX CLK = 375MHz
+			G205_MIPITX_REG1->sft_cfg[12] = 0x00000140; //TXPLL BNKSEL = 300MHz -- 640MHz
 		} else if ((width == 1280) && (height == 480)) {
 			;//TBD
 			//DISP_MOON3_REG->sft_cfg[14] = 0x00780028; //PLLH
@@ -136,14 +144,30 @@ void DRV_mipitx_pllclk_set(int mode, int width, int height)
 
 void DRV_mipitx_Init(int is_mipi_dsi_tx, int width, int height)
 {
+	int lane;
+
+	if ((width == 240) && (height == 320))
+		lane = 1;
+	//if ((width == xxx) && (height == xxx))
+	//	lane = 2;
+	else if ((width == 480) && (height == 1280))
+		lane = 4;
+	else
+		lane = 4;
+
 	G205_MIPITX_REG1->sft_cfg[6] = 0x00101334; //PHY Reset(under reset) & falling edge
 
-	//G204_MIPITX_REG0->sft_cfg[15] = 0x11000001; //lane num = 1 and DSI_EN and ANALOG_EN
-	//G204_MIPITX_REG0->sft_cfg[15] = 0x11000011; //lane num = 2 and DSI_EN and ANALOG_EN
-	G204_MIPITX_REG0->sft_cfg[15] = 0x11000031; //lane num = 4 and DSI_EN and ANALOG_EN
+	if (lane == 1)
+		G204_MIPITX_REG0->sft_cfg[15] = 0x11000001; //lane num = 1 and DSI_EN and ANALOG_EN
+	else if (lane == 2)
+		G204_MIPITX_REG0->sft_cfg[15] = 0x11000011; //lane num = 2 and DSI_EN and ANALOG_EN
+	else //if (lane == 4)
+		G204_MIPITX_REG0->sft_cfg[15] = 0x11000031; //lane num = 4 and DSI_EN and ANALOG_EN
 
-	//G204_MIPITX_REG0->sft_cfg[12] = 0x00000030; //vtf = sync pluse
-	G204_MIPITX_REG0->sft_cfg[12] = 0x00001030; //vtf = sync event
+	if ((width == 240) && (height == 320))
+		G204_MIPITX_REG0->sft_cfg[12] = 0x00000030; //vtf = sync pluse RGB888
+	else //if ((width == 480) && (height == 1280))
+		G204_MIPITX_REG0->sft_cfg[12] = 0x00001030; //vtf = sync event RGB888
 
 	G205_MIPITX_REG1->sft_cfg[6] = 0x00101335; //PHY Reset(under normal mode)
 
@@ -154,7 +178,14 @@ void DRV_mipitx_Init(int is_mipi_dsi_tx, int width, int height)
 		DRV_mipitx_pllclk_set(SP_MIPITX_LP_MODE, width, height); //set pll clk for LP mode
 
 		G204_MIPITX_REG0->sft_cfg[14] = 0x00100000; //enable command transfer at LP mode
-		G204_MIPITX_REG0->sft_cfg[15] = 0x11000033; //command mode start
+
+		if (lane == 1)
+			G204_MIPITX_REG0->sft_cfg[15] = 0x11000003; //command mode start
+		else if (lane == 2)
+			G204_MIPITX_REG0->sft_cfg[15] = 0x11000013; //command mode start
+		else //if (lane == 4)
+			G204_MIPITX_REG0->sft_cfg[15] = 0x11000033; //command mode start
+
 		G204_MIPITX_REG0->sft_cfg[17] = 0x00520004; //TA GET/SURE/GO
 		//G204_MIPITX_REG0->sft_cfg[29] = 0x0000c350; //fix
 		//G204_MIPITX_REG0->sft_cfg[29] = 0x000000af; //fix
@@ -181,6 +212,9 @@ void DRV_mipitx_Init(int is_mipi_dsi_tx, int width, int height)
 		G204_MIPITX_REG0->sft_cfg[1] = 0x00011010; //VSA=0x01 VFP=0x10 VBP=0x10
 		//G204_MIPITX_REG0->sft_cfg[0] = 0x04080005; //fix
 		//G204_MIPITX_REG0->sft_cfg[1] = 0x00010823; //VSA=0x01 VFP=0x08 VBP=0x23
+	} else if ((width == 240) && (height == 320)) { // 240x320
+		G204_MIPITX_REG0->sft_cfg[0] = 0x04080005; //fix
+		G204_MIPITX_REG0->sft_cfg[1] = 0x00010823; //VSA=0x01 VFP=0x08 VBP=0x23
 	} else if ((width == 1280) && (height == 480)) { // 1280x480
 		G204_MIPITX_REG0->sft_cfg[0] = 0x04080005; //fix
 		G204_MIPITX_REG0->sft_cfg[1] = 0x00010823; //VSA=0x01 VFP=0x08 VBP=0x23
@@ -204,20 +238,26 @@ void DRV_mipitx_Init(int is_mipi_dsi_tx, int width, int height)
 	// MIPITX  Video Mode WordCount Setting
 	G204_MIPITX_REG0->sft_cfg[19] |= (width << 16 | (width * 24 / 8)) ;
 
-	// MIPITX  LANE CLOCK DATA Timing 
+	// MIPITX  LANE CLOCK DATA Timing
 	G204_MIPITX_REG0->sft_cfg[5] = 0x00100008; //fix
 	G204_MIPITX_REG0->sft_cfg[6] = 0x00100010; //fix
 	G204_MIPITX_REG0->sft_cfg[7] = 0x0a120020; //fix
 	G204_MIPITX_REG0->sft_cfg[8] = 0x0a050010; //fix
 
-	// MIPITX Blanking Mode 
+	// MIPITX Blanking Mode
 	G204_MIPITX_REG0->sft_cfg[13] = 0x00001100; //fix
 
-	// MIPITX CLOCK CONTROL 
+	// MIPITX CLOCK CONTROL
 	G204_MIPITX_REG0->sft_cfg[30] = 0x00000001; //fix
 
-	// MIPITX SWITCH to Video Mode 
-	G204_MIPITX_REG0->sft_cfg[15] = 0x11000031; //video mode
+	// MIPITX SWITCH to Video Mode
+	if (lane == 1)
+		G204_MIPITX_REG0->sft_cfg[15] = 0x11000001; //video mode
+	else if (lane == 2)
+		G204_MIPITX_REG0->sft_cfg[15] = 0x11000011; //video mode
+	else //if (lane == 4)
+		G204_MIPITX_REG0->sft_cfg[15] = 0x11000031; //video mode
+
 }
 
 void DRV_mipitx_Init_1(int is_mipi_dsi_tx, int width, int height)
@@ -354,11 +394,11 @@ void check_data_fifo_empty(void)
 	}
 }
 
-#if 0
+#if 1
 /*
  * MIPI DSI (Display Command Set) for SP7350
  */
-static void sp7350_dcs_write_buf(const void *data, size_t len)
+void sp7350_dcs_write_buf(const void *data, size_t len)
 {
 	int i;
 	u8 *data1;
@@ -366,25 +406,23 @@ static void sp7350_dcs_write_buf(const void *data, size_t len)
 
 	data1 = (u8 *)data;
 
+	udelay(100);
 	if (len == 0) {
 		check_cmd_fifo_full();
 		value = 0x00000003;
 		G204_MIPITX_REG0->sft_cfg[9] = value; //G204.09
 	} else if (len == 1) {
 		check_cmd_fifo_full();
-		value = 0x00000013;
-		value |= (data1[0] << 8);
+		value = 0x00000013 | ((u32)data1[0] << 8);
 		G204_MIPITX_REG0->sft_cfg[9] = value; //G204.09
 	} else if (len == 2) {
 		check_cmd_fifo_full();
-		value = 0x00000023;
-		value |= (data1[0] << 8) | (data1[1] << 16);
+		value = 0x00000023 | ((u32)data1[0] << 8) | ((u32)data1[1] << 16);
 		G204_MIPITX_REG0->sft_cfg[9] = value; //G204.09
 	//} else if ((len >= 3) && (len <= 64)) {
 	} else if (len >= 3) {
 		check_cmd_fifo_full();
-		value = 0x00000029;
-		value |= ((u32)len << 8);
+		value = 0x00000029 | ((u32)len << 8);
 		G204_MIPITX_REG0->sft_cfg[10] = value; //G204.10
 		if (len % 4) data_cnt = ((u32)len / 4) + 1;
 		else data_cnt = ((u32)len / 4);
@@ -396,9 +434,8 @@ static void sp7350_dcs_write_buf(const void *data, size_t len)
 			if (i * 4 + 1 >= len) data1[i * 4 + 1] = 0x00;
 			if (i * 4 + 2 >= len) data1[i * 4 + 2] = 0x00;
 			if (i * 4 + 3 >= len) data1[i * 4 + 3] = 0x00;
-			value |= ((data1[i * 4 + 3] << 24) | (data1[i * 4 + 2] << 16) |
-				 (data1[i * 4 + 1] << 8) | (data1[i * 4 + 0] << 0));
-
+			value |= (((u32)data1[i * 4 + 3] << 24) | ((u32)data1[i * 4 + 2] << 16) |
+				 ((u32)data1[i * 4 + 1] << 8) | ((u32)data1[i * 4 + 0] << 0));
 			G204_MIPITX_REG0->sft_cfg[11] = value; //G204.11
 		}
 
@@ -409,7 +446,7 @@ static void sp7350_dcs_write_buf(const void *data, size_t len)
 
 #define sp7350_dcs_write_seq(seq...)			\
 ({							\
-	static const u8 d[] = { seq };			\
+	const u8 d[] = { seq };			\
 	sp7350_dcs_write_buf(d, ARRAY_SIZE(d));	\
 })
 #endif
@@ -425,233 +462,426 @@ static void sp7350_dcs_write_buf(const void *data, size_t len)
 void DRV_mipitx_panel_Init(int is_mipi_dsi_tx, int width, int height)
 {
 	if (is_mipi_dsi_tx) {
-		#if 0
-		printf("MIPITX DSI Panel : HXM0686TFT-001(%dx%d)\n", width, height);
-		//Panel HXM0686TFT-001 IPS
-		DRV_mipitx_gpio_set(( struct sp7350_disp_priv *)sp_gpio);
+		if ((width == 480) && (height == 1280)) {
+			#if 0
+			printf("MIPITX DSI Panel : HXM0686TFT-001(%dx%d)\n", width, height);
+			//Panel HXM0686TFT-001 IPS
+			DRV_mipitx_gpio_set(( struct sp7350_disp_priv *)sp_gpio);
 
-		sp7350_dcs_write_seq(0xB9, 0xF1, 0x12, 0x87);
-		sp7350_dcs_write_seq(0xB2, 0x40, 0x05, 0x78);
-		sp7350_dcs_write_seq(0xB3, 0x10, 0x10, 0x28, 0x28, 0x03, 0xFF, 0x00,
-							0x00, 0x00, 0x00);
-		sp7350_dcs_write_seq(0xB4, 0x80);
-		sp7350_dcs_write_seq(0xB5, 0x09, 0x09);
-		sp7350_dcs_write_seq(0xB6, 0x8D, 0x8D);
-		sp7350_dcs_write_seq(0xB8, 0x26, 0x22, 0xF0, 0x63);
-		sp7350_dcs_write_seq(0xBA, 0x33, 0x81, 0x05, 0xF9, 0x0E, 0x0E, 0x20,
-							0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x44,
-							0x25, 0x00, 0x91, 0x0A, 0x00, 0x00, 0x01, 0x4F,
-							0x01, 0x00, 0x00, 0x37);
-		sp7350_dcs_write_seq(0xBC, 0x47);
-		sp7350_dcs_write_seq(0xBF, 0x02, 0x10, 0x00, 0x80, 0x04);
-		sp7350_dcs_write_seq(0xC0, 0x73, 0x73, 0x50, 0x50, 0x00, 0x00, 0x12,
-							0x70, 0x00);
-		sp7350_dcs_write_seq(0xC1, 0x65, 0xC0, 0x32, 0x32, 0x77, 0xF4, 0x77,
-							0x77, 0xCC, 0xCC, 0xFF, 0xFF, 0x11, 0x11, 0x00,
-							0x00, 0x32);
-		sp7350_dcs_write_seq(0xC7, 0x10, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00,
-							0x00, 0xED, 0xC7, 0x00, 0xA5);
-		sp7350_dcs_write_seq(0xC8, 0x10, 0x40, 0x1E, 0x03);
-		sp7350_dcs_write_seq(0xCC, 0x0B);
-		sp7350_dcs_write_seq(0xE0, 0x00, 0x04, 0x06, 0x32, 0x3F, 0x3F, 0x36,
-							0x34, 0x06, 0x0B, 0x0E, 0x11, 0x11, 0x10, 0x12,
-							0x10, 0x13, 0x00, 0x04, 0x06, 0x32, 0x3F, 0x3F,
-							0x36, 0x34, 0x06, 0x0B, 0x0E, 0x11, 0x11, 0x10,
-							0x12, 0x10, 0x13);
-		sp7350_dcs_write_seq(0xE1, 0x11, 0x11, 0x91, 0x00, 0x00, 0x00, 0x00);
-		sp7350_dcs_write_seq(0xE3, 0x03, 0x03, 0x0B, 0x0B, 0x00, 0x03, 0x00,
-							0x00, 0x00, 0x00, 0xFF, 0x84, 0xC0, 0x10);
-		sp7350_dcs_write_seq(0xE9, 0xC8, 0x10, 0x06, 0x05, 0x18, 0xD2, 0x81,
-							0x12, 0x31, 0x23, 0x47, 0x82, 0xB0, 0x81, 0x23,
-							0x04, 0x00, 0x04, 0x04, 0x00, 0x00, 0x00, 0x00,
-							0x04, 0x04, 0x00, 0x00, 0x00, 0x88, 0x0B, 0xA8,
-							0x10, 0x32, 0x4F, 0x88, 0x88, 0x88, 0x88, 0x88,
-							0x88, 0x0B, 0xA8, 0x10, 0x32, 0x4F, 0x88, 0x88,
-							0x88, 0x88, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00,
-							0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
-		sp7350_dcs_write_seq(0xEA, 0x96, 0x0C, 0x01, 0x01, 0x00, 0x00, 0x00,
-							0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x4B, 0xA8,
-							0x23, 0x01, 0x08, 0xF8, 0x88, 0x88, 0x88, 0x88,
-							0x88, 0x4B, 0xA8, 0x23, 0x01, 0x08, 0xF8, 0x88,
-							0x88, 0x88, 0x88, 0x23, 0x10, 0x00, 0x00, 0x92,
-							0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-							0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20,
-							0x80, 0x81, 0x00, 0x00, 0x00, 0x00);
-		sp7350_dcs_write_seq(0xEF, 0xFF, 0xFF, 0x01);
+			sp7350_dcs_write_seq(0xB9, 0xF1, 0x12, 0x87);
+			sp7350_dcs_write_seq(0xB2, 0x40, 0x05, 0x78);
+			sp7350_dcs_write_seq(0xB3, 0x10, 0x10, 0x28, 0x28, 0x03, 0xFF, 0x00,
+								0x00, 0x00, 0x00);
+			sp7350_dcs_write_seq(0xB4, 0x80);
+			sp7350_dcs_write_seq(0xB5, 0x09, 0x09);
+			sp7350_dcs_write_seq(0xB6, 0x8D, 0x8D);
+			sp7350_dcs_write_seq(0xB8, 0x26, 0x22, 0xF0, 0x63);
+			sp7350_dcs_write_seq(0xBA, 0x33, 0x81, 0x05, 0xF9, 0x0E, 0x0E, 0x20,
+								0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x44,
+								0x25, 0x00, 0x91, 0x0A, 0x00, 0x00, 0x01, 0x4F,
+								0x01, 0x00, 0x00, 0x37);
+			sp7350_dcs_write_seq(0xBC, 0x47);
+			sp7350_dcs_write_seq(0xBF, 0x02, 0x10, 0x00, 0x80, 0x04);
+			sp7350_dcs_write_seq(0xC0, 0x73, 0x73, 0x50, 0x50, 0x00, 0x00, 0x12,
+								0x70, 0x00);
+			sp7350_dcs_write_seq(0xC1, 0x65, 0xC0, 0x32, 0x32, 0x77, 0xF4, 0x77,
+								0x77, 0xCC, 0xCC, 0xFF, 0xFF, 0x11, 0x11, 0x00,
+								0x00, 0x32);
+			sp7350_dcs_write_seq(0xC7, 0x10, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00,
+								0x00, 0xED, 0xC7, 0x00, 0xA5);
+			sp7350_dcs_write_seq(0xC8, 0x10, 0x40, 0x1E, 0x03);
+			sp7350_dcs_write_seq(0xCC, 0x0B);
+			sp7350_dcs_write_seq(0xE0, 0x00, 0x04, 0x06, 0x32, 0x3F, 0x3F, 0x36,
+								0x34, 0x06, 0x0B, 0x0E, 0x11, 0x11, 0x10, 0x12,
+								0x10, 0x13, 0x00, 0x04, 0x06, 0x32, 0x3F, 0x3F,
+								0x36, 0x34, 0x06, 0x0B, 0x0E, 0x11, 0x11, 0x10,
+								0x12, 0x10, 0x13);
+			sp7350_dcs_write_seq(0xE1, 0x11, 0x11, 0x91, 0x00, 0x00, 0x00, 0x00);
+			sp7350_dcs_write_seq(0xE3, 0x03, 0x03, 0x0B, 0x0B, 0x00, 0x03, 0x00,
+								0x00, 0x00, 0x00, 0xFF, 0x84, 0xC0, 0x10);
+			sp7350_dcs_write_seq(0xE9, 0xC8, 0x10, 0x06, 0x05, 0x18, 0xD2, 0x81,
+								0x12, 0x31, 0x23, 0x47, 0x82, 0xB0, 0x81, 0x23,
+								0x04, 0x00, 0x04, 0x04, 0x00, 0x00, 0x00, 0x00,
+								0x04, 0x04, 0x00, 0x00, 0x00, 0x88, 0x0B, 0xA8,
+								0x10, 0x32, 0x4F, 0x88, 0x88, 0x88, 0x88, 0x88,
+								0x88, 0x0B, 0xA8, 0x10, 0x32, 0x4F, 0x88, 0x88,
+								0x88, 0x88, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00,
+								0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
+			sp7350_dcs_write_seq(0xEA, 0x96, 0x0C, 0x01, 0x01, 0x00, 0x00, 0x00,
+								0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x4B, 0xA8,
+								0x23, 0x01, 0x08, 0xF8, 0x88, 0x88, 0x88, 0x88,
+								0x88, 0x4B, 0xA8, 0x23, 0x01, 0x08, 0xF8, 0x88,
+								0x88, 0x88, 0x88, 0x23, 0x10, 0x00, 0x00, 0x92,
+								0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+								0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20,
+								0x80, 0x81, 0x00, 0x00, 0x00, 0x00);
+			sp7350_dcs_write_seq(0xEF, 0xFF, 0xFF, 0x01);
 
-		sp7350_dcs_write_seq(0x36, 0x14);
-		sp7350_dcs_write_seq(0x35, 0x00);
-		sp7350_dcs_write_seq(0x11);
-		mdelay(120);
-		sp7350_dcs_write_seq(0x29);
-		mdelay(20);
-		#else
-		printf("MIPITX DSI Panel : HXM0686TFT-001(%dx%d)\n", width, height);
-		//Panel HXM0686TFT-001 IPS
-		DRV_mipitx_gpio_set(( struct sp7350_disp_priv *)sp_gpio);
+			sp7350_dcs_write_seq(0x36, 0x14);
+			sp7350_dcs_write_seq(0x35, 0x00);
+			sp7350_dcs_write_seq(0x11);
+			mdelay(120);
+			sp7350_dcs_write_seq(0x29);
+			mdelay(20);
+			#else
+			printf("MIPITX DSI Panel : HXM0686TFT-001(%dx%d)\n", width, height);
+			//Panel HXM0686TFT-001 IPS
+			DRV_mipitx_gpio_set(( struct sp7350_disp_priv *)sp_gpio);
 
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000429; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x8712F1B9; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000429; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x780540B2; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000b29; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x281010B3; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00ff0328; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[9] = 0x0080B423; //G204.09
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000329; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x000909B5; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000329; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x008D8DB6; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000529; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0xF02226B8; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000063; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00001c29; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x058133BA; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x200E0EF9; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x44000000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x0A910025; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x4F010000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x37000001; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[9] = 0x0047BC23; //G204.09
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000629; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x001002BF; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000480; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000a29; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x507373C0; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x12000050; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000070; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00001229; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x32C065C1; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x77F47732; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0xFFCCCC77; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x001111FF; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00003200; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000d29; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x0A0010C7; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00C7ED00; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x000000A5; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000529; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x1E4010C8; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000003; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[9] = 0x000BCC23; //G204.09
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00002329; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x060400E0; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x363F3F32; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x0E0B0634; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x12101111; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x04001310; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x3F3F3206; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x0B063436; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x1011110E; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00131012; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000829; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x911111E1; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000f29; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x0B0303E3; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x0003000B; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0xFF000000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x0010C084; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00004029; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x0610C8E9; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x81D21805; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x47233112; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x2381B082; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x04040004; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000404; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0xA80B8800; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x884F3210; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x88888888; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x10A80B88; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x88884F32; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00888888; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00003E29; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x010C96EA; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000001; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0xA84B8800; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0xF8080123; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x88888888; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x23A84B88; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x88F80801; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x23888888; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x92000010; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x20000000; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00008180; //G204.11
-		G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[10] = 0x00000429; //G204.10
-		G204_MIPITX_REG0->sft_cfg[11] = 0x01FFFFEF; //G204.11
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[9] = 0x00143623; //G204.09
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000429; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x8712F1B9; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000429; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x780540B2; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000b29; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x281010B3; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00ff0328; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x0080B423; //G204.09
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000329; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x000909B5; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000329; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x008D8DB6; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000529; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0xF02226B8; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000063; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00001c29; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x058133BA; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x200E0EF9; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x44000000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x0A910025; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x4F010000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x37000001; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x0047BC23; //G204.09
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000629; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x001002BF; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000480; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000a29; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x507373C0; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x12000050; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000070; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00001229; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x32C065C1; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x77F47732; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0xFFCCCC77; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x001111FF; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00003200; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000d29; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x0A0010C7; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00C7ED00; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x000000A5; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000529; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x1E4010C8; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000003; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x000BCC23; //G204.09
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00002329; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x060400E0; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x363F3F32; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x0E0B0634; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x12101111; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x04001310; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x3F3F3206; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x0B063436; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x1011110E; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00131012; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000829; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x911111E1; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000f29; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x0B0303E3; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x0003000B; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0xFF000000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x0010C084; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00004029; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x0610C8E9; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x81D21805; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x47233112; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x2381B082; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x04040004; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000404; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0xA80B8800; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x884F3210; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x88888888; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x10A80B88; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x88884F32; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00888888; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00003E29; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x010C96EA; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000001; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0xA84B8800; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0xF8080123; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x88888888; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x23A84B88; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x88F80801; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x23888888; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x92000010; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x20000000; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00008180; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000000; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000429; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x01FFFFEF; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x00143623; //G204.09
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
 
-		G204_MIPITX_REG0->sft_cfg[9] = 0x00003523; //G204.09
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[9] = 0x00001113; //G204.09
+			G204_MIPITX_REG0->sft_cfg[9] = 0x00003523; //G204.09
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x00001113; //G204.09
 
-		mdelay(120);
+			mdelay(120);
 
-		check_cmd_fifo_empty();
-		check_data_fifo_empty();
-		G204_MIPITX_REG0->sft_cfg[9] = 0x00002913; //G204.09
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x00002913; //G204.09
 
-		mdelay(20);
-		#endif
+			mdelay(20);
+			#endif
+		} else if ((width == 240) && (height == 320)) {
+			#if 1
+			pr_info("MIPITX DSI Panel : TCXD024IBLON-2(%dx%d)\n", width, height);
+			//Panel TCXD024IBLON-2 240x320
+			//sp7350_mipitx_gpio_set();
+
+			sp7350_dcs_write_seq(0xDF, 0x98, 0x51, 0xE9);
+
+			/* Page 00 setting */
+			sp7350_dcs_write_seq(0xDE, 0x00);
+			sp7350_dcs_write_seq(0xB7, 0x22, 0x85, 0x22, 0x2B);
+			sp7350_dcs_write_seq(0xC8, 0x3F, 0x38, 0x33, 0x2F, 0x32, 0x34, 0x2F,
+								0x2F, 0x2D, 0x2C, 0x27, 0x1A, 0x14, 0x0A, 0x06,
+								0x0E, 0x3F, 0x38, 0x33, 0x2F, 0x32, 0x34, 0x2F,
+								0x2F, 0x2D, 0x2C, 0x27, 0x1A, 0x14, 0x0A, 0x06,
+								0x0E);
+			sp7350_dcs_write_seq(0xB9, 0x33, 0x08, 0xCC);
+			sp7350_dcs_write_seq(0xBB, 0x46, 0x7A, 0x30, 0x40, 0x7C, 0x60, 0x70,
+								0x70);
+			sp7350_dcs_write_seq(0xBC, 0x38, 0x3C);
+			sp7350_dcs_write_seq(0xC0, 0x31, 0x20);
+			sp7350_dcs_write_seq(0xC1, 0x12);
+			sp7350_dcs_write_seq(0xC3, 0x08, 0x00, 0x0A, 0x10, 0x08, 0x54, 0x45,
+								0x71, 0x2C);
+			sp7350_dcs_write_seq(0xC4, 0x00, 0xA0, 0x79, 0x0E, 0x0A, 0x16, 0x79,
+								0x0E, 0x0A, 0x16, 0x79, 0x0E, 0x0A, 0x16, 0x82,
+								0x00, 0x03);
+			sp7350_dcs_write_seq(0xD0, 0x04, 0x0C, 0x6B, 0x0F, 0x07, 0x03);
+			sp7350_dcs_write_seq(0xD7, 0x13, 0x00);
+
+			/* Page 02 setting */
+			sp7350_dcs_write_seq(0xDE, 0x02);
+			mdelay(1);
+			sp7350_dcs_write_seq(0xB8, 0x1D, 0xA0, 0x2F, 0x04, 0x33);
+			sp7350_dcs_write_seq(0xC1, 0x10, 0x66, 0x66, 0x01);
+
+			/* Page 00 setting */
+			sp7350_dcs_write_seq(0xDE, 0x00);
+			//sp7350_dcs_write_seq(0xC2, 0x08); /* BIST_EN */
+			sp7350_dcs_write_seq(0x11);
+			mdelay(120);
+
+			/* Page 02 setting */
+			sp7350_dcs_write_seq(0xDE, 0x02);
+			mdelay(1);
+			sp7350_dcs_write_seq(0xC5, 0x4E, 0x00, 0x00);
+			mdelay(1);
+			sp7350_dcs_write_seq(0xCA, 0x30, 0x20, 0xF4);
+			mdelay(1);
+
+			/* Page 04 setting */
+			sp7350_dcs_write_seq(0xDE, 0x04);
+			mdelay(1);
+			sp7350_dcs_write_seq(0xD3, 0x3C);
+			mdelay(1);
+
+			/* Page 00 setting */
+			sp7350_dcs_write_seq(0xDE, 0x00);
+			mdelay(1);
+			sp7350_dcs_write_seq(0x29);
+			#else
+			printf("MIPITX DSI Panel : TCXD024IBLON-2(%dx%d)\n", width, height);
+			//Panel TCXD024IBLON-2
+			//DRV_mipitx_gpio_set(( struct sp7350_disp_priv *)sp_gpio);
+
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000429; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0xE95198DF; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x0000DE23; //G204.09
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000529; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x228522B7; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x0000002B; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00002129; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x33383FC8; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x2F34322F; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x272C2D2F; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x060A141A; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x33383F0E; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x2F34322F; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x272C2D2F; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x060A141A; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x0000000E; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000429; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0xCC0833B9; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000929; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x307A46BB; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x70607C40; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000070; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000329; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x003C38BC; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000329; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x002031C0; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x0012C123; //G204.09
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000a29; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x0A0008C3; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x45540810; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00002C71; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00001229; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x79A000C4; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x79160A0E; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x79160A0E; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x82160A0E; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000300; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000729; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x6B0C04D0; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x0003070F; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000329; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x000013D7; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x0002DE23; //G204.09
+			mdelay(1);
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000629; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x2FA01DB8; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00003304; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000529; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x666610C1; //G204.11
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00000001; //G204.11
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x0000DE23; //G204.09
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			//G204_MIPITX_REG0->sft_cfg[9] = 0x0008C223; //G204.09 BIST EN
+			//check_cmd_fifo_empty();
+			//check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x00001113; //G204.09
+
+			mdelay(120);
+
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x0002DE23; //G204.09
+			mdelay(1);
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000429; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0x00004EC5; //G204.11
+			mdelay(1);
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[10] = 0x00000429; //G204.10
+			G204_MIPITX_REG0->sft_cfg[11] = 0xF42030CA; //G204.11
+			mdelay(1);
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x0004DE23; //G204.09
+			mdelay(1);
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x003CD323; //G204.09
+			mdelay(1);
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x0000DE23; //G204.09
+			mdelay(1);
+			check_cmd_fifo_empty();
+			check_data_fifo_empty();
+			G204_MIPITX_REG0->sft_cfg[9] = 0x00002913; //G204.09
+
+			//mdelay(20);
+			#endif
+		}
 	} else {
 		printf("DRV_mipitx_panel_Init for CSI(none)\n");
 	}

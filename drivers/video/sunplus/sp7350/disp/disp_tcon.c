@@ -74,6 +74,17 @@ void DRV_TCON_Init(int width, int height)
 		G199_TCON0_REG0->sft_cfg[26] = 0x000001df;
 		//G199_TCON0_REG0->sft_cfg[27] = 0x00000028;
 		//G199_TCON0_REG0->sft_cfg[28] = 0x00000b69;
+	} else if ((width == 240) && (height == 320)) {
+		G199_TCON0_REG0->sft_cfg[12] = 0x000002A3;
+		G199_TCON0_REG0->sft_cfg[13] = 0x000002A7;
+		G199_TCON0_REG0->sft_cfg[20] = 0x0000016B;
+		G199_TCON0_REG0->sft_cfg[21] = 0x00000000;
+
+		G199_TCON0_REG0->sft_cfg[23] = 0x000002A3;
+		G199_TCON0_REG0->sft_cfg[24] = 0x000002A7;
+
+		G199_TCON0_REG0->sft_cfg[25] = 0x00000000;
+		G199_TCON0_REG0->sft_cfg[26] = 0x000000EF;
 	} else if ((width == 1280) && (height == 480)) {
 		G199_TCON0_REG0->sft_cfg[12] = 0x0000060a;
 		G199_TCON0_REG0->sft_cfg[13] = 0x0000060a;
@@ -149,6 +160,13 @@ void DRV_TCON_Init(int width, int height)
 		G200_TCON0_REG1->sft_cfg[9] = 0x000001df; //V_ACT=0x1e0-1
 		G200_TCON0_REG1->sft_cfg[10] = 0x000044ff; //VSTEP=0x4 V_ACT=0x500-1
 		G200_TCON0_REG1->sft_cfg[21] = 0x00000011; //sync with G204.01 VBP
+	} else if ((width == 240) && (height == 320)) {
+		//G200_TCON0_REG1->sft_cfg[6] = 0x00000001; //Internal , H color bar
+		G200_TCON0_REG1->sft_cfg[7] = 0x000002aa; //HTT 0x2ab -1
+		G200_TCON0_REG1->sft_cfg[8] = 0x0000416B; //HSTEP=0x4 VTT 0x16c -1
+		G200_TCON0_REG1->sft_cfg[9] = 0x000000EF; //V_ACT=0xf0-1
+		G200_TCON0_REG1->sft_cfg[10] = 0x0000413F; //VSTEP=0x4 V_ACT=0x140-1
+		G200_TCON0_REG1->sft_cfg[21] = 0x00000024; //sync with G204.01 VBP
 	} else if ((width == 1280) && (height == 480)) {
 		//TBD
 	} else if ((width == 1280) && (height == 720)) {
