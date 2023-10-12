@@ -85,7 +85,7 @@ void gen_info(FILE *fp, bitmap_t *b, uint16_t n_colors, uint32_t ffile_size, int
 			"#define SP7350_LOGO_BMP_HEIGHT\t\t\t%d\t/*depend*/\n"
 			"#define SP7350_LOGO_BMP_X_OFFSET\t\t%d\t/*depend*/\n"
 			"#define SP7350_LOGO_BMP_Y_OFFSET\t\t%d\t/*depend*/\n\n",
-			ffile_size, 250, 100, 0, 0);
+			ffile_size, b->width, b->height, 0, 0);
 	}
 	else if (ffile_type == FILE_TYPE_8BPP_BMP) {
 		printf("/* FILE_TYPE_8BPP_BMP */\n");
