@@ -390,7 +390,7 @@
 	"setexpr sz_kernel ${sz_kernel} + ${sz_sign}; " \
 	dbg_scr("echo from kernel partition to ${addr_temp_kernel} sz ${sz_kernel}; ") \
 	"nand read ${addr_temp_kernel} kernel ${sz_kernel}; " \
-	"setenv bootargs ${b_c} root=ubi0:rootfs rw ubi.mtd=9,2048 rootflags=sync rootfstype=ubifs mtdparts=${mtdparts} user_debug=255 rootwait; " \
+	"setenv bootargs ${b_c} root=ubi0:rootfs rw ubi.mtd=9 rootflags=sync rootfstype=ubifs mtdparts=${mtdparts} user_debug=255 rootwait; " \
 	"run boot_kernel \0" \
 "pnand_boot=nand read ${addr_tmp_header} kernel 0x40; " \
 	"setenv tmpval 0; setexpr tmpaddr ${addr_tmp_header} + 0x0c; run be2le; " \
