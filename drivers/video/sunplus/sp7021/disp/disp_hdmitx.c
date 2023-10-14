@@ -65,6 +65,11 @@ void DRV_hdmitx_Init(int is_hdmi, int width, int height)
             hdmi_clk_init(7, width, height); //mode = 7 (USER_MODE)
             hdmitx_set_timming(0);
         }
+        else if( (width == 480) && (height == 272) ) {
+            hdmi_clk_init(0, 0, 0);
+            hdmitx_set_timming(0);
+            G380_HDMITX_REG->g380_reserved[8] = 0x00001000; //DVI mode
+        }
         else {
             hdmi_clk_init(0, 0, 0);
             hdmitx_set_timming(0);
@@ -90,7 +95,7 @@ void hdmitx_set_timming(int mode)
     if (mode == 0) { //HDMITX 720x480 59.94Hz as default setting
         G380_HDMITX_REG->g380_reserved[5] = 0x0000141f;
         G380_HDMITX_REG->g380_reserved[6] = 0x000000ff;
-        G380_HDMITX_REG->g380_reserved[8] = 0x00001001;
+        G380_HDMITX_REG->g380_reserved[8] = 0x00001001; //HDMI mode
         G380_HDMITX_REG->g380_reserved[20] = 0x0000a59b;
         G380_HDMITX_REG->g380_reserved[21] = 0x00007a2d;
         G380_HDMITX_REG->g380_reserved[22] = 0x00009238;

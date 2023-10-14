@@ -86,8 +86,14 @@ int API_OSD_UI_Init(int w, int h, u32 fb_addr, int input_fmt)
 	G196_OSD0_REG->osd_hvld_offset = 0;
 	G196_OSD0_REG->osd_vvld_offset = 0;
 
-	G196_OSD0_REG->osd_hvld_width = UI_width;
-	G196_OSD0_REG->osd_vvld_height = UI_height;
+	if ( (UI_width == 480) && (UI_height == 272) ) {
+		G196_OSD0_REG->osd_hvld_width = 720;
+		G196_OSD0_REG->osd_vvld_height = 480;
+	}
+	else {
+		G196_OSD0_REG->osd_hvld_width = UI_width;
+		G196_OSD0_REG->osd_vvld_height = UI_height;
+	}
 
 	//G196_OSD0_REG->osd_data_fetch_ctrl = 0x0af8;
 	G196_OSD0_REG->osd_bist_ctrl = 0x0;

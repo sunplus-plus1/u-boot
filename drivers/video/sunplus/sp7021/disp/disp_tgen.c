@@ -57,7 +57,10 @@ void DRV_TGEN_Init(int is_hdmi, int width, int height)
 		}
 	}
 	else {
-		if ( (width == 1024) && (height == 600) ) {
+		if ( (width == 480) && (height == 272) ) {
+			G213_TGEN_REG->tgen_dtg_config = 0; //TGEN HDMI MODE
+		}
+		else if ( (width == 1024) && (height == 600) ) {
 			G213_TGEN_REG->tgen_dtg_config = 1; //TGEN USER MODE
 			G213_TGEN_REG->tgen_dtg_total_pixel = 1344; //Total pixel
 			G213_TGEN_REG->tgen_dtg_ds_line_start_cd_point = 1024; //line start

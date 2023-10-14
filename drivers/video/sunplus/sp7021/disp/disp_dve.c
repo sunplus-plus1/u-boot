@@ -224,6 +224,33 @@ void DRV_DVE_Init(int is_hdmi, int width, int height)
 			G235_DVE_REG->color_bar_h_total = USER_MODE_COLORBAR_HOR_TOTAL(1055);
 			G235_DVE_REG->color_bar_h_active = USER_MODE_COLORBAR_HOR_ACTIVE(799);
 		}
+		else if( (width == 480) && (height == 272) ) {
+			/* it doesn't use, but still set */
+			debug("dve init 480_272 hdmi\n");
+			G234_DVE_REG->dve_vsync_start_top = USER_MODE_VSYNC_TOP_START(0);
+			G234_DVE_REG->dve_vsync_start_bot = USER_MODE_VSYNC_BOT_START(0);
+			G234_DVE_REG->dve_vsync_h_point = USER_MODE_VSYNC_HOR_POINT(489);
+			G234_DVE_REG->dve_vsync_pd_cnt = USER_MODE_VSYNC_WITCH_LINE(1);
+			G234_DVE_REG->dve_hsync_start = USER_MODE_HSYNC_START(489);
+			G234_DVE_REG->dve_hsync_pd_cnt = USER_MODE_HSYNC_WITCH_PIXEL(35);
+
+			G234_DVE_REG->dve_v_vld_top_start = USER_MODE_VER_VALID_TOP_START(11);
+			G234_DVE_REG->dve_v_vld_top_end = USER_MODE_VER_VALID_TOP_END(283);
+			G234_DVE_REG->dve_v_vld_bot_start = USER_MODE_VER_VALID_BOT_START(11);
+			G234_DVE_REG->dve_v_vld_bot_end = USER_MODE_VER_VALID_BOT_END(283);
+
+			G234_DVE_REG->dve_de_h_start = USER_MODE_HOR_DATA_ENABLE_START(524);
+			G234_DVE_REG->dve_de_h_end = USER_MODE_HOR_DATA_ENABLE_END(287);
+			G234_DVE_REG->dve_mp_tg_line_0_length = USER_MODE_TOTAL_PIXEL(524);
+			G234_DVE_REG->dve_mp_tg_frame_0_line = USER_MODE_TOTAL_LINE(287);
+			G234_DVE_REG->dve_mp_tg_act_0_pix = USER_MODE_ACTIVE_PIXEL(479);
+
+			G235_DVE_REG->color_bar_v_total = USER_MODE_COLORBAR_VER_TOTAL(287);
+			G235_DVE_REG->color_bar_v_active = USER_MODE_COLORBAR_VER_ACTIVE(271);
+			G235_DVE_REG->color_bar_v_active_start = USER_MODE_COLORBAR_VER_ACTIVE_START(12);
+			G235_DVE_REG->color_bar_h_total = USER_MODE_COLORBAR_HOR_TOTAL(524);
+			G235_DVE_REG->color_bar_h_active = USER_MODE_COLORBAR_HOR_ACTIVE(479);
+		}
 		G235_DVE_REG->color_bar_mode = 0;
 		G234_DVE_REG->dve_hdmi_mode_1 = 0x3;
 		G234_DVE_REG->dve_hdmi_mode_0 = 0x41;// latch mode on

@@ -318,7 +318,10 @@ void disp_set_output_resolution(int is_hdmi, int width, int height)
     DRV_FrameRate_e fps;
 
 	if(is_hdmi) { //hdmitx output
-		if((width == 720)&&(height == 480)) {
+		if((width == 480)&&(height == 272)) {
+			mode = 0;
+		}
+		else if((width == 720)&&(height == 480)) {
 			mode = 0;
 		}
 		else if((width == 720)&&(height == 576)) {
@@ -357,6 +360,8 @@ void disp_set_output_resolution(int is_hdmi, int width, int height)
 			fmt = DRV_FMT_480P;
 			fps = DRV_FrameRate_5994Hz;
             hdmitx_set_timming(0);
+			if((width == 480)&&(height == 272))
+				G380_HDMITX_REG->g380_reserved[8] = 0x00001000; //DVI mode
 			break;
 		case 1:
 			fmt = DRV_FMT_576P;
