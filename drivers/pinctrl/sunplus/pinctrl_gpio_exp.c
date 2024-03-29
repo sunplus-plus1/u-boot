@@ -3,19 +3,8 @@
 #include <dm/devres.h>
 
 #include "pinctrl_sunplus.h"
-#ifdef CONFIG_PINCTRL_SUNPLUS
 #include <mach/gpio_drv.h>
 #include <dt-bindings/pinctrl/sppctl-sp7021.h>
-#elif defined (CONFIG_PINCTRL_SUNPLUS_Q645)
-#include <mach/gpio_drv.h>
-#include <dt-bindings/pinctrl/sppctl-q645.h>
-#elif defined (CONFIG_PINCTRL_SUNPLUS_SP7350)
-#include <mach/gpio_drv.h>
-#include <dt-bindings/pinctrl/sppctl-sp7350.h>
-#else
-#include <asm/arch/gpio_drv.h>
-#include <dt-bindings/pinctrl/sppctl-i143.h>
-#endif
 
 
 #ifdef SUPPORT_PINMUX

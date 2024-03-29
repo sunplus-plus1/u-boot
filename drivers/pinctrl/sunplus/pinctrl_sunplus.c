@@ -7,15 +7,8 @@
 #include <asm-generic/gpio.h>
 
 #include "pinctrl_sunplus.h"
-#ifdef CONFIG_PINCTRL_SUNPLUS
 #include <dt-bindings/pinctrl/sppctl-sp7021.h>
-#elif defined (CONFIG_PINCTRL_SUNPLUS_Q645)
-#include <dt-bindings/pinctrl/sppctl-q645.h>
-#elif defined (CONFIG_PINCTRL_SUNPLUS_SP7350)
-#include <dt-bindings/pinctrl/sppctl-sp7350.h>
-#else
-#include <dt-bindings/pinctrl/sppctl-i143.h>
-#endif
+
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -635,15 +628,7 @@ static int sunplus_pinctrl_probe(struct udevice *dev)
 }
 
 static const struct udevice_id sunplus_pinctrl_ids[] = {
-#ifdef CONFIG_PINCTRL_SUNPLUS
 	{ .compatible = "sunplus,sp7021-pctl" },
-#elif defined (CONFIG_PINCTRL_SUNPLUS_Q645)
-	{ .compatible = "sunplus,q645-pctl" },
-#elif defined (CONFIG_PINCTRL_SUNPLUS_SP7350)
-	{ .compatible = "sunplus,sp7350-pctl" },
-#else
-	{ .compatible = "sunplus,i143-pctl" },
-#endif
 	{ /* zero */ }
 };
 
