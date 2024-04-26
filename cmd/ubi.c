@@ -533,6 +533,25 @@ int ubi_part(char *part_name, const char *vid_header_offset)
 	return 0;
 }
 
+#if defined(CONFIG_FASTBOOT_FLASH_NAND) && defined(CONFIG_SP_SPINAND)
+int64_t _ubi_max_avail_size(void)
+{
+	int64_t size;
+
+	/* Calculate maximum available size */
+	size = (int64_t)ubi->avail_pebs * ubi->leb_size;
+
+	return size;
+}
+
+int _ubi_create_vol(char *volume, int64_t size, int dynamic, int vol_id,
+	bool skipcheck)
+
+{
+	return ubi_create_vol(volume, size, dynamic, vol_id, skipcheck);
+}
+#endif
+
 static int do_ubi(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int64_t size = 0;

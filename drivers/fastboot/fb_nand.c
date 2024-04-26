@@ -17,6 +17,9 @@
 #include <nand.h>
 
 #if defined(CONFIG_FASTBOOT_FLASH_NAND) && defined(CONFIG_SP_SPINAND)
+	#ifdef CONFIG_CMD_UBI
+#include <ubi_uboot.h>
+	#endif
 #include "../mtd/nand/raw/sp_bblk.h"
 #endif
 
@@ -116,10 +119,43 @@ static int _fb_nand_write(struct mtd_info *mtd, struct part_info *part,
 		return -EINVAL;
 	}
 
-	/*
-	 * Partition uboot2 is boot block. Its ECC structure is 1K60.
-	 */
+	#ifdef CONFIG_CMD_UBI
+	if (!strcmp(part->name, "rootfs")) {
+		int64_t size;
+		int ret;
+
+		/*
+		 * Partition rootfs is moundted by UBI FS. UBI functions are
+		 * required to update it.
+		 */
+		ret = ubi_part(part->name, "2048");
+		if (ret) {
+			printf("Failed to create UBI partition\n");
+			return ret;
+		}
+
+		size = _ubi_max_avail_size();
+		printf("The max available size is %lld\n", size);
+
+		ret = _ubi_create_vol(part->name, size, 1, UBI_VOL_NUM_AUTO, false);
+		if (ret) {
+			printf("Failed to create a UBI volume\n");
+			return ret;
+		}
+
+		ret = ubi_volume_write(part->name, buffer, length);
+		if (ret) {
+			printf("Failed to write data to the UBI volume\n");
+			return ret;
+		}
+
+		return 0;
+	} else
+	#endif
 	if (!strcmp(part->name, "uboot2")) {
+		/*
+		 * Partition uboot2 is boot block. Its ECC structure is 1K60.
+		 */
 		return sp_nand_write_bblk(mtd, offset, &length, part->size,
 					buffer, 0);
 	} else {
