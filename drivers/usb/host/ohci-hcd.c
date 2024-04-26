@@ -65,8 +65,13 @@
 #undef OHCI_FILL_TRACE
 
 /* For initializing controller (mask in an HCFS mode too) */
+#ifdef CONFIG_ARCH_PENTAGRAM
+#define OHCI_CONTROL_INIT \
+	(OHCI_CTRL_CBSR & 0x3) | OHCI_CTRL_IE
+#else
 #define OHCI_CONTROL_INIT \
 	(OHCI_CTRL_CBSR & 0x3) | OHCI_CTRL_IE | OHCI_CTRL_PLE
+#endif
 
 #if !CONFIG_IS_ENABLED(DM_USB)
 #ifdef CONFIG_PCI_OHCI
@@ -164,6 +169,7 @@ static int cc_to_error[16] = {
 	/* Not Access */	       -1
 };
 
+#ifndef CONFIG_ARCH_PENTAGRAM
 static const char *cc_to_string[16] = {
 	"No Error",
 	"CRC: Last data packet from endpoint contained a CRC error.",
@@ -198,6 +204,7 @@ static const char *cc_to_string[16] = {
 	"NOT ACCESSED: This code is set by software before the TD is placed" \
 		     "on a list to be processed by the HC.(2)",
 };
+#endif
 
 static inline u32 roothub_a(struct ohci *hc)
 	{ return ohci_readl(&hc->regs->roothub.a); }
@@ -1033,6 +1040,13 @@ static void td_submit_job(ohci_t *ohci, struct usb_device *dev,
 			TD_CC | TD_DP_OUT | toggle:
 			TD_CC | TD_R | TD_DP_IN | toggle;
 		td_fill(ohci, info, data, data_len, dev, cnt++, urb);
+
+#ifdef CONFIG_ARCH_PENTAGRAM
+		/* start periodic */
+		ohci->hc_control |= OHCI_CTRL_PLE;
+		ohci_writel(ohci->hc_control, &ohci->regs->control);
+#endif
+
 		break;
 	}
 	if (urb->length != cnt)
@@ -1074,7 +1088,9 @@ static void check_status(td_t *td_list)
 
 	cc = TD_CC_GET(m32_swap(td_list->hwINFO));
 	if (cc) {
+#ifndef CONFIG_ARCH_PENTAGRAM
 		err(" USB-error: %s (%x)", cc_to_string[cc], cc);
+#endif
 
 		invalidate_dcache_ed(td_list->ed);
 		if (*phwHeadP & m32_swap(0x1)) {
@@ -1157,7 +1173,10 @@ static int takeback_td(ohci_t *ohci, td_t *td_list)
 	/* error code of transfer */
 	cc = TD_CC_GET(tdINFO);
 	if (cc) {
+#ifndef CONFIG_ARCH_PENTAGRAM
 		err("USB-error: %s (%x)", cc_to_string[cc], cc);
+#endif
+
 		stat = cc_to_error[cc];
 	}
 
