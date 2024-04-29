@@ -1043,8 +1043,10 @@ static void td_submit_job(ohci_t *ohci, struct usb_device *dev,
 
 #ifdef CONFIG_ARCH_PENTAGRAM
 		/* start periodic */
-		ohci->hc_control |= OHCI_CTRL_PLE;
-		ohci_writel(ohci->hc_control, &ohci->regs->control);
+		if (!(ohci_readl(&ohci->regs->control) & OHCI_CTRL_PLE)) {
+			ohci->hc_control |= OHCI_CTRL_PLE;
+			ohci_writel(ohci->hc_control, &ohci->regs->control);
+		}
 #endif
 
 		break;
